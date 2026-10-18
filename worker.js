@@ -1,279 +1,105 @@
 
-const SUPABASE_URL = "https://fwjukrrvkerqeavpztil.supabase.co";
-const SUPABASE_KEY = "sb_publishable_t-WV203nt30hunLvo2L3CA_6Vnu5bYD";
-const VERIFY_URL = "https://fairy-warden.4fhdmtg8y9.workers.dev/api/verify";
+const GUILD_ID = "1542010384091971614";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const ALLOWED_ROLES = new Set([
+  "1542072789958131732",
+  "1542018762285252690",
+  "1561102957007601856",
+  "1561144901373268039",
+  "1561145345533157426",
+  "1561145428517593129"
+]);
 
-const app = document.getElementById("app");
-
-const sections = [
-  "Dashboard",
-  "Staff Directory",
-  "Moderation Logs",
-  "Inactivity Requests",
-  "Leaderboard",
-  "Announcements",
-  "Schedule"
-];
-
-const descriptions = {
-  "Dashboard": "Welcome to your magical staff hub.",
-  "Staff Directory": "Meet the Fairy Academy staff team.",
-  "Moderation Logs": "Review and track moderation actions.",
-  "Inactivity Requests": "Manage staff absence requests.",
-  "Leaderboard": "Track staff points and activity.",
-  "Announcements": "Keep up with staff announcements.",
-  "Schedule": "Stay up to date with staff scheduling."
-};
-
-app.innerHTML = `
-  <main class="dashboard">
-    <aside class="sidebar">
-      <div class="brand">
-        <h1>Fairy Warden</h1>
-        <p>Fairy Academy</p>
-      </div>
-      <nav id="main-navigation" hidden aria-label="Main navigation">
-        ${sections.map((section, index) => `
-          <button class="nav-item ${index === 0 ? "active" : ""}"
-            data-section="${section}">${section}</button>
-        `).join("")}
-      </nav>
-      <footer>Made for Fairy Academy ✧</footer>
-    </aside>
-
-    <section class="main-content">
-      <header class="page-header">
-        <div class="account-area">
-          <div id="user-info" hidden>
-            <img id="user-avatar" alt="Discord avatar">
-            <span id="user-name"></span>
-            <button id="logout-button" type="button">Log out</button>
-          </div>
-          <button id="discord-login" type="button">✧ Continue with Discord</button>
-        </div>
-        <p class="eyebrow">FAIRY ACADEMY · STAFF PORTAL</p>
-        <h2 id="page-title">Dashboard</h2>
-        <p id="page-description">${descriptions.Dashboard}</p>
-        <p id="auth-notice" role="status" aria-live="polite">Checking login...</p>
-      </header>
-
-      <div id="page-content" hidden>
-        <article class="welcome-card">
-          <p class="eyebrow">YOUR MAGICAL HEADQUARTERS</p>
-          <h3>Welcome to Fairy Warden ✧</h3>
-          <p>Your staff dashboard is taking shape.</p>
-        </article>
-        <div class="feature-grid">
-          ${sections.slice(1).map(section => `
-            <button class="feature-card" data-section="${section}">
-              <span class="feature-star">✧</span>
-              <h3>${section}</h3>
-              <p>Explore the ${section.toLowerCase()} section.</p>
-              <span class="feature-link">Open section →</span>
-            </button>
-          `).join("")}
-        </div>
-      </div>
-    </section>
-  </main>
-`;
-
-const loginButton = document.getElementById("discord-login");
-const logoutButton = document.getElementById("logout-button");
-const userInfo = document.getElementById("user-info");
-const userName = document.getElementById("user-name");
-const userAvatar = document.getElementById("user-avatar");
-const navigation = document.getElementById("main-navigation");
-const pageContent = document.getElementById("page-content");
-const authNotice = document.getElementById("auth-notice");
-
-let verificationAttempt = 0;
-
-function showMessage(message) {
-  authNotice.textContent = message;
-}
-
-function lockDashboard() {
-  navigation.hidden = true;
-  pageContent.hidden = true;
-}
-
-function updateAccountUI(user) {
-  if (!user) {
-    loginButton.hidden = false;
-    loginButton.disabled = false;
-    loginButton.textContent = "✧ Continue with Discord";
-    userInfo.hidden = true;
-    userName.textContent = "";
-    userAvatar.removeAttribute("src");
-    userAvatar.hidden = true;
-    return;
-  }
-
-  loginButton.hidden = true;
-  userInfo.hidden = false;
-
-  const metadata = user.user_metadata || {};
-  userName.textContent =
-    metadata.full_name ||
-    metadata.name ||
-    metadata.custom_claims?.global_name ||
-    user.email ||
-    "Fairy Academy Member";
-
-  const avatar = metadata.avatar_url || metadata.picture;
-
-  if (avatar) {
-    userAvatar.src = avatar;
-    userAvatar.hidden = false;
-  } else {
-    userAvatar.removeAttribute("src");
-    userAvatar.hidden = true;
-  }
-}
-
-function openSection(section) {
-  if (!sections.includes(section) || navigation.hidden) return;
-
-  document.querySelectorAll(".nav-item").forEach(button => {
-    button.classList.toggle("active", button.dataset.section === section);
+function json(data, status = 200) {
+  return Response.json(data, {
+    status,
+    headers: { "Cache-Control": "no-store" }
   });
-
-  document.getElementById("page-title").textContent = section;
-  document.getElementById("page-description").textContent = descriptions[section];
-
-  if (section === "Dashboard") {
-    pageContent.innerHTML = `
-      <article class="welcome-card">
-        <p class="eyebrow">YOUR MAGICAL HEADQUARTERS</p>
-        <h3>Welcome to Fairy Warden ✧</h3>
-        <p>Your staff dashboard is taking shape.</p>
-      </article>
-      <div class="notice-card">
-        <strong>Coming soon</strong>
-        <p>Staff tools will become available as we connect the database and Discord.</p>
-      </div>`;
-  } else {
-    pageContent.innerHTML = `
-      <article class="notice-card">
-        <span class="feature-star">✧</span>
-        <h3>${section}</h3>
-        <p>This section is ready for development.</p>
-        <p>Staff data and permissions will be connected in a later step.</p>
-      </article>`;
-  }
 }
 
-document.addEventListener("click", event => {
-  const button = event.target.closest("[data-section]");
-  if (button) openSection(button.dataset.section);
-});
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
 
-loginButton.addEventListener("click", async () => {
-  loginButton.disabled = true;
-  loginButton.textContent = "Connecting to Discord...";
+    if (url.pathname !== "/api/verify") {
+      return env.ASSETS.fetch(request);
+    }
 
-  try {
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider: "discord",
-      options: { redirectTo: window.location.origin }
-    });
-    if (error) throw error;
-  } catch (error) {
-    showMessage("Discord login failed: " + error.message);
-    loginButton.disabled = false;
-    loginButton.textContent = "✧ Continue with Discord";
-  }
-});
+    if (request.method !== "GET") {
+      return json({ error: "Method not allowed" }, 405);
+    }
 
-logoutButton.addEventListener("click", async () => {
-  logoutButton.disabled = true;
-  lockDashboard();
+    if (!env.DISCORD_BOT_TOKEN || !env.SUPABASE_URL || !env.SUPABASE_KEY) {
+      return json({ error: "Worker environment variables are missing" }, 500);
+    }
 
-  try {
-    const { error } = await supabaseClient.auth.signOut();
-    if (error) throw error;
-    updateAccountUI(null);
-    showMessage("You have been logged out.");
-  } catch (error) {
-    showMessage("Logout failed: " + error.message);
-  } finally {
-    logoutButton.disabled = false;
-  }
-});
+    const authorization = request.headers.get("Authorization");
 
-async function verifyStaff(session) {
-  const attempt = ++verificationAttempt;
-  lockDashboard();
+    if (!authorization?.startsWith("Bearer ")) {
+      return json({ error: "Not logged in" }, 401);
+    }
 
-  if (!session) {
-    updateAccountUI(null);
-    showMessage("Please sign in with Discord to continue.");
-    return;
-  }
-
-  updateAccountUI(session.user);
-  showMessage("Verifying your Fairy Academy staff role...");
-
-  try {
-    const response = await fetch(VERIFY_URL, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
-      }
-    });
-
-    let result;
     try {
-      result = await response.json();
-    } catch {
-      result = { error: "The verification endpoint did not return JSON." };
-    }
-
-    if (attempt !== verificationAttempt) return;
-
-    if (!response.ok || result.allowed !== true) {
-      showMessage(
-        `Verification error (${response.status}): ${
-          result.error || "Staff access denied."
-        }`
+      const authResponse = await fetch(
+        `${env.SUPABASE_URL}/auth/v1/user`,
+        {
+          headers: {
+            apikey: env.SUPABASE_KEY,
+            Authorization: authorization
+          }
+        }
       );
-      return;
+
+      if (!authResponse.ok) {
+        return json({ error: "Supabase rejected the login token" }, 401);
+      }
+
+      const user = await authResponse.json();
+      const identity = user.identities?.find(
+        item => item.provider === "discord"
+      );
+
+      const discordId = [
+        identity?.identity_data?.sub,
+        identity?.identity_data?.provider_id,
+        identity?.identity_data?.user_id,
+        identity?.id,
+        user.user_metadata?.provider_id,
+        user.user_metadata?.sub
+      ].find(value =>
+        typeof value === "string" && /^\d{17,20}$/.test(value)
+      );
+
+      if (!discordId) {
+        return json({ error: "Discord account ID was not found; sign in again" }, 403);
+      }
+
+      const memberResponse = await fetch(
+        `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${discordId}`,
+        {
+          headers: {
+            Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`
+          }
+        }
+      );
+
+      if (!memberResponse.ok) {
+        return json({
+          error: memberResponse.status === 404
+            ? "Discord account is not a member of Fairy Academy"
+            : `Discord API returned HTTP ${memberResponse.status}`
+        }, memberResponse.status === 404 ? 403 : 502);
+      }
+
+      const member = await memberResponse.json();
+
+      if (!member.roles?.some(role => ALLOWED_ROLES.has(role))) {
+        return json({ error: "No approved staff role found" }, 403);
+      }
+
+      return json({ allowed: true });
+    } catch {
+      return json({ error: "Server verification failed" }, 500);
     }
-
-    navigation.hidden = false;
-    pageContent.hidden = false;
-    showMessage("Staff verification successful. Welcome!");
-  } catch (error) {
-    if (attempt !== verificationAttempt) return;
-    showMessage(
-      "Could not contact verification endpoint: " +
-      (error.message || "Network error")
-    );
   }
-}
-
-async function initializeAuth() {
-  lockDashboard();
-
-  try {
-    const { data, error } = await supabaseClient.auth.getSession();
-    if (error) throw error;
-
-    await verifyStaff(data.session);
-
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => void verifyStaff(session), 0);
-    });
-  } catch (error) {
-    lockDashboard();
-    showMessage("Authentication error: " + error.message);
-  }
-}
-
-initializeAuth();
+};
