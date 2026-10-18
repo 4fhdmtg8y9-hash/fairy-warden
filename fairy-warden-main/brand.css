@@ -15,3 +15,34 @@
 @media (max-width: 720px) {
   .brand h1 { font-size: 25px; }
 }
+
+/* Make the signed-in Discord identity feel like a real profile control. */
+#user-info {
+  gap: 11px;
+  padding: 5px 6px 5px 7px;
+  border: 1px solid rgba(197, 217, 156, .3);
+  border-radius: 28px;
+  background: rgba(5, 21, 13, .66);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .23);
+}
+
+#user-avatar {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #d7e79d;
+  box-shadow: 0 0 13px rgba(213, 233, 145, .35);
+}
+
+#user-name {
+  min-width: 92px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f5f2d9;
+  font: 600 15px "Cormorant Garamond", serif;
+}
+
+.logout-button {
+  min-height: 34px;
+}
