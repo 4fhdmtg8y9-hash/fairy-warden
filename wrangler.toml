@@ -6,3 +6,7 @@ compatibility_date = "2026-10-18"
 [assets]
 directory = "."
 binding = "ASSETS"
+
+[vars]
+SUPABASE_URL = "https://fwjukrrvkerqeavpztil.supabase.co"
+SUPABASE_KEY = "sb_publishable_t-WV203nt30hunLvo2L3CA_6Vnu5bYD"
