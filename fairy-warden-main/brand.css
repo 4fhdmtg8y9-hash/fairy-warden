@@ -1,0 +1,17 @@
+.brand h1 {
+  font: 700 30px/1.2 "Cinzel Decorative", serif;
+  letter-spacing: -1.5px;
+}
+
+.brand h1::before {
+  content: none;
+}
+
+.brand p {
+  margin-top: 8px;
+  letter-spacing: 3.1px;
+}
+
+@media (max-width: 720px) {
+  .brand h1 { font-size: 25px; }
+}
