@@ -1,6 +1,7 @@
 
 const SUPABASE_URL = "https://fwjukrrvkerqeavpztil.supabase.co";
 const SUPABASE_KEY = "sb_publishable_t-WV203nt30hunLvo2L3CA_6Vnu5bYD";
+const VERIFY_URL = "https://fairy-warden.4fhdmtg8y9.workers.dev/api/verify";
 
 const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
@@ -37,7 +38,7 @@ app.innerHTML = `
         <p>Fairy Academy</p>
       </div>
 
-      <nav aria-label="Main navigation">
+      <nav id="main-navigation" aria-label="Main navigation" hidden>
         ${sections.map((section, index) => `
           <button
             class="nav-item ${index === 0 ? "active" : ""}"
@@ -55,9 +56,7 @@ app.innerHTML = `
           <div id="user-info" hidden>
             <img id="user-avatar" alt="Discord avatar">
             <span id="user-name"></span>
-            <button id="logout-button" type="button">
-              Log out
-            </button>
+            <button id="logout-button" type="button">Log out</button>
           </div>
 
           <button id="discord-login" type="button">
@@ -70,9 +69,12 @@ app.innerHTML = `
         <p id="page-description">
           Welcome to your magical staff hub.
         </p>
+        <p id="auth-notice" role="status" aria-live="polite">
+          Checking your login...
+        </p>
       </header>
 
-      <div id="page-content">
+      <div id="page-content" hidden>
         <article class="welcome-card">
           <p class="eyebrow">YOUR MAGICAL HEADQUARTERS</p>
           <h3>Welcome to Fairy Warden ✧</h3>
@@ -94,8 +96,65 @@ app.innerHTML = `
   </main>
 `;
 
+const loginButton = document.getElementById("discord-login");
+const logoutButton = document.getElementById("logout-button");
+const userInfo = document.getElementById("user-info");
+const userName = document.getElementById("user-name");
+const userAvatar = document.getElementById("user-avatar");
+const navigation = document.getElementById("main-navigation");
+const pageContent = document.getElementById("page-content");
+const authNotice = document.getElementById("auth-notice");
+
+let authCheckNumber = 0;
+
+function showMessage(message) {
+  authNotice.textContent = message;
+}
+
+function lockDashboard() {
+  navigation.hidden = true;
+  pageContent.hidden = true;
+}
+
+function updateAccountUI(user) {
+  if (!user) {
+    loginButton.hidden = false;
+    loginButton.disabled = false;
+    loginButton.textContent = "✧ Continue with Discord";
+
+    userInfo.hidden = true;
+    userName.textContent = "";
+    userAvatar.removeAttribute("src");
+    userAvatar.hidden = true;
+    return;
+  }
+
+  loginButton.hidden = true;
+  userInfo.hidden = false;
+
+  const metadata = user.user_metadata || {};
+
+  userName.textContent =
+    metadata.full_name ||
+    metadata.name ||
+    metadata.custom_claims?.global_name ||
+    user.email ||
+    "Fairy Academy Member";
+
+  const avatarUrl = metadata.avatar_url || metadata.picture;
+
+  if (avatarUrl) {
+    userAvatar.src = avatarUrl;
+    userAvatar.hidden = false;
+  } else {
+    userAvatar.removeAttribute("src");
+    userAvatar.hidden = true;
+  }
+}
+
 function openSection(section) {
   if (!sections.includes(section)) return;
+  if (navigation.hidden) return;
 
   document.querySelectorAll(".nav-item").forEach(button => {
     button.classList.toggle(
@@ -108,10 +167,8 @@ function openSection(section) {
   document.getElementById("page-description").textContent =
     descriptions[section];
 
-  const content = document.getElementById("page-content");
-
   if (section === "Dashboard") {
-    content.innerHTML = `
+    pageContent.innerHTML = `
       <article class="welcome-card">
         <p class="eyebrow">YOUR MAGICAL HEADQUARTERS</p>
         <h3>Welcome to Fairy Warden ✧</h3>
@@ -126,7 +183,7 @@ function openSection(section) {
     return;
   }
 
-  content.innerHTML = `
+  pageContent.innerHTML = `
     <article class="notice-card">
       <span class="feature-star">✧</span>
       <h3>${section}</h3>
@@ -140,58 +197,6 @@ document.addEventListener("click", event => {
   const button = event.target.closest("[data-section]");
   if (button) openSection(button.dataset.section);
 });
-
-const loginButton = document.getElementById("discord-login");
-const logoutButton = document.getElementById("logout-button");
-const userInfo = document.getElementById("user-info");
-const userName = document.getElementById("user-name");
-const userAvatar = document.getElementById("user-avatar");
-
-function showMessage(message) {
-  let notice = document.getElementById("auth-notice");
-
-  if (!notice) {
-    notice = document.createElement("p");
-    notice.id = "auth-notice";
-    notice.setAttribute("role", "status");
-    document.querySelector(".page-header").appendChild(notice);
-  }
-
-  notice.textContent = message;
-}
-
-function updateAccountUI(user) {
-  if (!user) {
-    loginButton.hidden = false;
-    userInfo.hidden = true;
-    userName.textContent = "";
-    userAvatar.removeAttribute("src");
-    return;
-  }
-
-  loginButton.hidden = true;
-  userInfo.hidden = false;
-
-  const metadata = user.user_metadata || {};
-  const discordName =
-    metadata.full_name ||
-    metadata.name ||
-    metadata.custom_claims?.global_name ||
-    user.email ||
-    "Fairy Academy Member";
-
-  userName.textContent = discordName;
-
-  const avatarUrl = metadata.avatar_url || metadata.picture;
-
-  if (avatarUrl) {
-    userAvatar.src = avatarUrl;
-    userAvatar.hidden = false;
-  } else {
-    userAvatar.removeAttribute("src");
-    userAvatar.hidden = true;
-  }
-}
 
 loginButton.addEventListener("click", async () => {
   loginButton.disabled = true;
@@ -215,10 +220,10 @@ loginButton.addEventListener("click", async () => {
 
 logoutButton.addEventListener("click", async () => {
   logoutButton.disabled = true;
+  lockDashboard();
 
   try {
     const { error } = await supabaseClient.auth.signOut();
-
     if (error) throw error;
 
     updateAccountUI(null);
@@ -230,19 +235,69 @@ logoutButton.addEventListener("click", async () => {
   }
 });
 
+async function verifyStaff(session) {
+  const checkNumber = ++authCheckNumber;
+  lockDashboard();
+
+  if (!session) {
+    updateAccountUI(null);
+    showMessage("Please sign in with Discord to continue.");
+    return;
+  }
+
+  updateAccountUI(session.user);
+  showMessage("Verifying your Fairy Academy staff role...");
+
+  try {
+    const response = await fetch(VERIFY_URL, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
+      }
+    });
+
+    const result = await response.json();
+
+    if (checkNumber !== authCheckNumber) return;
+
+    if (!response.ok || result.allowed !== true) {
+      showMessage(
+        response.status === 403
+          ? "Access denied. You need an approved Fairy Academy staff role."
+          : response.status === 401
+            ? "Your login could not be verified. Please log in again."
+            : "Staff verification is unavailable. Please try again later."
+      );
+      return;
+    }
+
+    navigation.hidden = false;
+    pageContent.hidden = false;
+    showMessage("Staff verification successful. Welcome!");
+  } catch {
+    if (checkNumber !== authCheckNumber) return;
+
+    showMessage(
+      "Could not connect to staff verification. Please try again later."
+    );
+  }
+}
+
 async function initializeAuth() {
+  lockDashboard();
+
   try {
     const { data, error } = await supabaseClient.auth.getSession();
-
     if (error) throw error;
 
-    updateAccountUI(data.session?.user || null);
+    await verifyStaff(data.session);
 
     supabaseClient.auth.onAuthStateChange((_event, session) => {
-      updateAccountUI(session?.user || null);
+      void verifyStaff(session);
     });
-  } catch (error) {
-    showMessage("Authentication setup error: " + error.message);
+  } catch {
+    lockDashboard();
+    showMessage("Authentication error. Please refresh the page.");
   }
 }
 
