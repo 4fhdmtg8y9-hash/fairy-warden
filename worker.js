@@ -2,13 +2,17 @@
 const GUILD_ID = "1542010384091971614";
 
 const ALLOWED_ROLES = new Set([
-  "1542072789958131732", // Owner
-  "1542018762285252690", // Community Manager
-  "1561102957007601856", // Director
-  "1561144901373268039", // Administrator
-  "1561145345533157426", // Senior Moderator
-  "1561145428517593129"  // Moderator
+  "1542072789958131732",
+  "1542018762285252690",
+  "1561102957007601856",
+  "1561144901373268039",
+  "1561145345533157426",
+  "1561145428517593129"
 ]);
+
+function reply(body, status = 200) {
+  return Response.json(body, { status });
+}
 
 export default {
   async fetch(request, env) {
@@ -19,54 +23,59 @@ export default {
     }
 
     if (request.method !== "GET") {
-      return Response.json({ error: "Method not allowed" }, {
-        status: 405
-      });
+      return reply({ error: "Method not allowed" }, 405);
+    }
+
+    if (!env.DISCORD_BOT_TOKEN || !env.SUPABASE_URL || !env.SUPABASE_KEY) {
+      return reply({ error: "Server configuration is incomplete" }, 500);
+    }
+
+    const authorization = request.headers.get("Authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return reply({ error: "Not logged in" }, 401);
     }
 
     try {
-      const auth = request.headers.get("Authorization");
-
-      if (!auth?.startsWith("Bearer ")) {
-        return Response.json({ error: "Not logged in" }, {
-          status: 401
-        });
-      }
-
-      const userResponse = await fetch(
+      const authResponse = await fetch(
         `${env.SUPABASE_URL}/auth/v1/user`,
         {
           headers: {
             apikey: env.SUPABASE_KEY,
-            Authorization: auth
+            Authorization: authorization
           }
         }
       );
 
-      if (!userResponse.ok) {
-        return Response.json({ error: "Invalid login" }, {
-          status: 401
-        });
+      if (!authResponse.ok) {
+        return reply({ error: "Supabase login validation failed" }, 401);
       }
 
-      const user = await userResponse.json();
+      const user = await authResponse.json();
 
-      const discordIdentity = user.identities?.find(
-        identity => identity.provider === "discord"
+      const identity = user.identities?.find(
+        item => item.provider === "discord"
       );
 
-      const discordId =
-        discordIdentity?.identity_data?.sub ||
-        discordIdentity?.identity_data?.provider_id ||
-        discordIdentity?.id;
+      const candidates = [
+        identity?.identity_data?.sub,
+        identity?.identity_data?.provider_id,
+        identity?.identity_data?.user_id,
+        user.user_metadata?.provider_id,
+        user.user_metadata?.sub
+      ];
+
+      const discordId = candidates.find(
+        value => typeof value === "string" && /^\d{17,20}$/.test(value)
+      );
 
       if (!discordId) {
-        return Response.json({ error: "Discord identity not found" }, {
-          status: 403
-        });
+        return reply({
+          error: "Could not find your Discord account ID. Please sign out and log in again."
+        }, 403);
       }
 
-      const memberResponse = await fetch(
+      const discordResponse = await fetch(
         `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${discordId}`,
         {
           headers: {
@@ -75,31 +84,37 @@ export default {
         }
       );
 
-      if (!memberResponse.ok) {
-        return Response.json({ error: "Not a server member" }, {
-          status: 403
-        });
+      if (discordResponse.status === 404) {
+        return reply({
+          error: "Your Discord account was not found in Fairy Academy. Check that you joined the server and that the account is correct."
+        }, 403);
       }
 
-      const member = await memberResponse.json();
-      const allowed = member.roles.some(role =>
+      if (!discordResponse.ok) {
+        return reply({
+          error: "Discord member lookup failed. Check the bot token and server access."
+        }, 502);
+      }
+
+      const member = await discordResponse.json();
+
+      if (!Array.isArray(member.roles)) {
+        return reply({ error: "Discord returned an invalid member record" }, 502);
+      }
+
+      const hasStaffRole = member.roles.some(role =>
         ALLOWED_ROLES.has(role)
       );
 
-      if (!allowed) {
-        return Response.json({ error: "Staff access denied" }, {
-          status: 403
-        });
+      if (!hasStaffRole) {
+        return reply({
+          error: "Your account was found, but none of the six approved staff roles matched."
+        }, 403);
       }
 
-      return Response.json({
-        allowed: true,
-        discordId
-      });
+      return reply({ allowed: true });
     } catch {
-      return Response.json({ error: "Verification failed" }, {
-        status: 500
-      });
+      return reply({ error: "Verification service failed unexpectedly" }, 500);
     }
   }
 };
