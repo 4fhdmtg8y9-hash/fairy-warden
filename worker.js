@@ -208,7 +208,6 @@ export default {async fetch(request,env) {
   try { return await route(request,env); }
   catch(error) { return json({error:error.message||"Request failed"},500); }
 }};
-+
 export class DiscordPresence {
   constructor(ctx,env) {
     this.ctx=ctx;this.env=env;this.socket=null;this.seq=null;this.ready=false;this.roleNames={};this.heartbeatTimer=null;this.reconnectTimer=null;this.members={};this.presences={};
