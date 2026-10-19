@@ -195,12 +195,10 @@ async function route(request,env) {
     const body=await request.json(),title=String(body.title||"").trim(),messageText=String(body.message||"").trim();
     if(!title||!messageText)return json({error:"Add both an announcement title and message."},400);
     if(title.length>256||messageText.length>3500)return json({error:"Title limit is 256 characters and message limit is 3,500 characters."},400);
-    if(!env.ANNOUNCEMENT_CHANNEL_ID)return json({error:"ANNOUNCEMENT_CHANNEL_ID is not configured."},503);
     try {
-      const posted=await postMessage(env,env.ANNOUNCEMENT_CHANNEL_ID,{embeds:[{title,color:0x537b48,description:messageText,author:{name:staff.profile.username,icon_url:staff.profile.avatar_url||undefined},timestamp:new Date().toISOString(),footer:{text:"Fairy Warden announcements"}}]});
-      const rows=await db(env,"announcements",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify({created_by:staff.discordId,title,message:messageText,discord_message_id:posted.id})});
+      const rows=await db(env,"announcements",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify({created_by:staff.discordId,title,message:messageText})});
       return json({item:rows[0]},201);
-    } catch { return json({error:"Announcement could not be posted. Check the channel setting and bot permissions."},502); }
+    } catch { return json({error:"Announcement could not be saved to the website."},502); }
   }
   return env.ASSETS.fetch(request);
 }
