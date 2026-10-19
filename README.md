@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/33672691/README.md)
 # Fairy Warden
 
 ## One-time setup
@@ -22,7 +23,6 @@ Set these Worker **variables**:
 - `DISCORD_PUBLIC_KEY`
 - `MODERATION_REVIEW_CHANNEL_ID`
 - `INACTIVITY_REVIEW_CHANNEL_ID`
-- `ANNOUNCEMENT_CHANNEL_ID`
 - `APPROVER_ROLE_IDS` — comma-separated Discord role IDs for the Owner, Community Manager/Supervisor, and Director. These roles alone can approve/deny Discord reports and publish announcements.
 
 The six accepted staff role IDs are currently listed in `STAFF_ROLES` in `worker.js`. Replace those IDs with the Fairy Academy staff roles if they differ.
@@ -35,7 +35,7 @@ In the Discord Developer Portal:
 - Enable **Presence Intent** for the live staff-online widget.
 - Set the Interactions Endpoint URL to `https://fairy-warden.4fhdmtg8y9.workers.dev/api/discord/interactions`.
 
-Give the bot View Channel, Send Messages, Embed Links, Attach Files, and Read Message History in the moderation, inactivity, and announcement channels. Keep the bot token in a Worker secret; reports are sent through the bot API, so no webhook URL is needed.
+Give the bot View Channel, Send Messages, Embed Links, Attach Files, and Read Message History in the moderation and inactivity review channels. Keep the bot token in a Worker secret; reports are sent through the bot API, so no webhook URL is needed.
 
 The live presence widget uses a Cloudflare Durable Object configured in `wrangler.toml`. Deploy with a Wrangler version that supports SQLite-backed Durable Objects.
 
@@ -45,6 +45,6 @@ Run `npm install` once. Use `npm run dev` for local development and `npm run dep
 
 - Private moderation history for each submitting moderator; approved reports earn 5 points.
 - A points leaderboard, staff directory with Discord profiles and first/last dashboard login, and a shared staff schedule.
-- Announcements published to Discord, restricted to configured approver roles.
+- Website announcements restricted to configured approver roles.
 - Moderation and inactivity approval buttons restricted to those same roles.
 - A live Discord staff presence widget (requires Presence Intent).
